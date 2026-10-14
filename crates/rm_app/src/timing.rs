@@ -32,11 +32,6 @@ impl FixedTimestep {
         }
     }
 
-    /// Длительность одного тика.
-    pub fn tick(&self) -> Duration {
-        self.tick
-    }
-
     /// Добавляет прошедшее реальное время и возвращает, сколько тиков
     /// симуляции нужно выполнить прямо сейчас.
     pub fn advance(&mut self, elapsed: Duration) -> u32 {

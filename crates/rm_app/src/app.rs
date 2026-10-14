@@ -1,26 +1,27 @@
 //! Приложение: окно, события и главный цикл.
 //!
 //! winit сообщает о событиях (окно создано, изменён размер, нажата клавиша,
-//! пора рисовать). На каждой итерации цикла мы:
-//! 1) считаем, сколько реального времени прошло;
-//! 2) выполняем нужное число тиков симуляции с фиксированным шагом;
-//! 3) рисуем кадр, смешивая два последних состояния симуляции.
+//! пора рисовать). События мыши и клавиатуры уходят в [`Game`]. На каждой
+//! итерации цикла мы:
+//! 1) считаем, сколько реального времени прошло (с учётом паузы и скорости игры);
+//! 2) выполняем нужное число шагов битвы с фиксированным шагом;
+//! 3) рисуем кадр, смешивая два последних состояния битвы.
 //!
 //! Подробно: `docs/app/main-loop.md`.
 
 use std::time::Instant;
 
 use anyhow::Result;
+use glam::Vec2 as V2;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
-use winit::event::{ElementState, KeyEvent, WindowEvent};
+use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
-use winit::keyboard::{Key, NamedKey};
 use winit::window::{Window, WindowId};
 
+use crate::game::{Game, Request};
 use crate::options::Options;
-use crate::render::{FrameOutcome, Renderer};
-use crate::sim::{self, DemoSim};
+use crate::render::{Frame, FrameOutcome, Renderer};
 use crate::timing::{FixedTimestep, RateCounter};
 
 const TITLE: &str = "Reforged Medieval";
@@ -38,15 +39,14 @@ pub struct App {
     rates: RateCounter,
     last_frame: Option<Instant>,
     ticks_this_frame: u32,
-    prev_sim: DemoSim,
-    sim: DemoSim,
+    game: Game,
     frames_presented: u64,
     /// Ошибка, из-за которой пришлось остановиться; main выведет её.
     pub error: Option<anyhow::Error>,
 }
 
 impl App {
-    pub fn new(options: Options) -> Self {
+    pub fn new(options: Options, game: Game) -> Self {
         Self {
             timestep: FixedTimestep::new(options.tick_rate, MAX_TICKS_PER_FRAME),
             options,
@@ -55,8 +55,7 @@ impl App {
             rates: RateCounter::default(),
             last_frame: None,
             ticks_this_frame: 0,
-            prev_sim: DemoSim::default(),
-            sim: DemoSim::default(),
+            game,
             frames_presented: 0,
             error: None,
         }
@@ -87,12 +86,13 @@ impl App {
         let elapsed = self.last_frame.map_or_else(Default::default, |t| now - t);
         self.last_frame = Some(now);
 
-        let ticks = self.timestep.advance(elapsed);
-        let dt = self.timestep.tick().as_secs_f32();
+        // Пауза и ускорение: игровое время = реальное × множитель.
+        let game_elapsed = elapsed.mul_f32(self.game.time_scale());
+        let ticks = self.timestep.advance(game_elapsed);
         for _ in 0..ticks {
-            self.prev_sim = self.sim;
-            self.sim.step(dt);
+            self.game.tick();
         }
+        self.game.update(elapsed.as_secs_f32());
         self.ticks_this_frame += ticks;
 
         if let Some(rates) = self
@@ -114,17 +114,27 @@ impl App {
         let Some(renderer) = self.renderer.as_mut() else {
             return Ok(());
         };
-        let phase = sim::interpolated_phase(&self.prev_sim, &self.sim, self.timestep.alpha());
-        if renderer.draw_frame(sim::clear_color(phase))? == FrameOutcome::Presented {
+        let (w, h) = renderer.extent();
+        let size = V2::new(w as f32, h as f32);
+        let (constants, clear) = self.game.build_frame(self.timestep.alpha(), size);
+        let (meshes, decals, ui) = self.game.frame_lists();
+        let frame = Frame {
+            clear,
+            constants,
+            meshes,
+            decals,
+            ui,
+        };
+        if renderer.draw_frame(&frame)? == FrameOutcome::Presented {
             self.frames_presented += 1;
         }
         if let Some(limit) = self.options.exit_after_frames
             && self.frames_presented >= limit
         {
             log::info!(
-                "Нарисовано {} кадров, тиков симуляции: {}. Выход.",
+                "Нарисовано {} кадров, шагов битвы: {}. Выход.",
                 self.frames_presented,
-                self.sim.tick
+                self.game.battle().tick()
             );
             event_loop.exit();
         }
@@ -150,16 +160,7 @@ impl ApplicationHandler for App {
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         match event {
-            WindowEvent::CloseRequested
-            | WindowEvent::KeyboardInput {
-                event:
-                    KeyEvent {
-                        logical_key: Key::Named(NamedKey::Escape),
-                        state: ElementState::Pressed,
-                        ..
-                    },
-                ..
-            } => event_loop.exit(),
+            WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => {
                 if let Some(r) = self.renderer.as_mut() {
                     r.resize(size.width, size.height);
@@ -171,7 +172,15 @@ impl ApplicationHandler for App {
                     self.fail(event_loop, e);
                 }
             }
-            _ => {}
+            other => {
+                let size = self.renderer.as_ref().map_or(V2::ONE, |r| {
+                    let (w, h) = r.extent();
+                    V2::new(w as f32, h as f32)
+                });
+                if self.game.handle_event(&other, size) == Request::Quit {
+                    event_loop.exit();
+                }
+            }
         }
     }
 

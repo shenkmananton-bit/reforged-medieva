@@ -1,6 +1,6 @@
 [package]
 name = "rm_app"
-description = "Reforged Medieval: настольное приложение (окно, Vulkan, главный цикл)"
+description = "Reforged Medieval: настольное приложение (окно, Vulkan, главный цикл, битва)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -17,4 +17,9 @@ ash = "0.38"
 ash-window = "0.13"
 log = "0.4"
 env_logger = "0.11"
+# Матрицы камеры (разрешено везде, docs/adr/crate-map.md).
+glam = "0.30"
 winit = "0.30"
+rm_battle = { path = "../rm_battle" }
+rm_battle_ai = { path = "../rm_battle_ai" }
+rm_data = { path = "../rm_data" }

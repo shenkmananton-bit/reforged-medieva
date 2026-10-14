@@ -1,13 +1,16 @@
 //! Точка входа настольного приложения Reforged Medieval.
 //!
-//! Здесь только запуск: разобрать параметры, включить журнал,
-//! создать цикл событий и передать управление в [`app::App`].
+//! Здесь только запуск: разобрать параметры, включить журнал, загрузить
+//! данные и битву, создать цикл событий и передать управление в [`app::App`].
 //! Как устроено приложение целиком: `docs/app/README.md`.
 
 mod app;
+mod camera;
+mod font;
+mod game;
+mod hud;
 mod options;
 mod render;
-mod sim;
 mod timing;
 
 use std::process::ExitCode;
@@ -39,8 +42,11 @@ fn main() -> ExitCode {
 }
 
 fn run(options: options::Options) -> anyhow::Result<()> {
+    let data_dir = game::find_data_dir(options.data_dir.as_deref())?;
+    log::info!("Данные: {}", data_dir.display());
+    let game = game::Game::new(&data_dir, options.seed, options.demo)?;
     let event_loop = EventLoop::new()?;
-    let mut app = app::App::new(options);
+    let mut app = app::App::new(options, game);
     event_loop.run_app(&mut app)?;
     match app.error.take() {
         Some(e) => Err(e),
