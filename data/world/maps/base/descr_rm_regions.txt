@@ -1,0 +1,47 @@
+;
+; descr_rm_regions.txt — положение поселений и соседство регионов.
+; Новый файл Reforged Medieval. В Medieval II это вычислялось из картинки
+; map_regions.tga; пока её разбора нет, соседство задаётся здесь текстом.
+; Соседство должно быть взаимным: если A граничит с B, то и B с A.
+; Формат описан в docs/modding/campaign.md
+;
+
+region      Ostmark
+position    20, 60
+neighbours  Westfold, Hollowmere, Kingsford
+
+region      Westfold
+position    8, 58
+neighbours  Ostmark, Greywater
+
+region      Hollowmere
+position    34, 58
+neighbours  Ostmark, Kingsford, Grassmarch
+
+region      Greywater
+position    10, 44
+neighbours  Westfold, Kingsford, Sunport
+
+region      Kingsford
+position    24, 42
+neighbours  Ostmark, Hollowmere, Greywater, Vinehill, Redcliff
+
+region      Sunport
+position    12, 20
+neighbours  Greywater, Vinehill
+
+region      Vinehill
+position    26, 22
+neighbours  Sunport, Kingsford, Redcliff
+
+region      Redcliff
+position    40, 28
+neighbours  Kingsford, Vinehill, Dustfields
+
+region      Grassmarch
+position    50, 52
+neighbours  Hollowmere, Dustfields
+
+region      Dustfields
+position    54, 36
+neighbours  Grassmarch, Redcliff

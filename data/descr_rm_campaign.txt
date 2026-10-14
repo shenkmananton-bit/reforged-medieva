@@ -1,0 +1,30 @@
+;
+; descr_rm_campaign.txt — числа базовых правил кампании Reforged Medieval.
+; Новый файл (в Medieval II таких чисел нет в тексте или они в descr_campaign_db.xml).
+; Формат описан в docs/modding/campaign.md
+;
+
+; --- экономика ---
+tax_per_100_population          3       ; денариев за ход с каждых 100 жителей
+farm_income_per_level           30      ; доход с ферм за каждый уровень плодородия региона
+
+; --- население ---
+growth_base_permille            5       ; базовый прирост за ход, в тысячных (5 = 0,5%)
+growth_per_farm_level_permille  2       ; добавка за каждый уровень плодородия
+
+; --- армии ---
+army_moves_per_turn             1       ; сколько регионов армия проходит за ход
+cavalry_army_moves_per_turn     2       ; то же для армии только из конницы
+recruit_slots_per_turn          1       ; сколько отрядов поселение обучает одновременно
+
+; --- автобой ---
+autoresolve_spread_percent      20      ; удача: сила стороны умножается на 80..120%
+autoresolve_winner_loss_percent 50      ; потери победителя от соотношения сил
+
+; --- уровни поселений: имя, предельное население ---
+settlement_level    village,    2000
+settlement_level    town,       6000
+settlement_level    large_town, 12000
+settlement_level    city,       24000
+settlement_level    large_city, 36000
+settlement_level    huge_city,  60000

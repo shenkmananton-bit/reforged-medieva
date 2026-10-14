@@ -1,0 +1,99 @@
+;
+; descr_regions.txt — регионы карты кампании Reforged Medieval.
+; Это наши собственные примерные данные (заглушки), а не файлы оригинальной игры.
+; Каждый регион — 9 строк подряд, порядок строк важен:
+;   имя региона / поселение / фракция-основатель / мятежники / цвет R G B /
+;   ресурсы / очки триумфа / плодородие / religions { … }
+; Формат описан в docs/modding/campaign.md
+;
+
+Ostmark
+    Ostburg
+    northmark
+    Northern_Rebels
+    40 70 160
+    iron, furs
+    5
+    3
+    religions { catholic 90 pagan 10 }
+Westfold
+    Westerholm
+    northmark
+    Northern_Rebels
+    60 100 190
+    timber
+    3
+    2
+    religions { catholic 85 pagan 15 }
+Hollowmere
+    Mereby
+    slave
+    Northern_Rebels
+    90 120 80
+    fish, furs
+    3
+    2
+    religions { catholic 60 pagan 40 }
+Greywater
+    Greyford
+    slave
+    Northern_Rebels
+    100 100 140
+    salt
+    3
+    2
+    religions { catholic 80 pagan 20 }
+Kingsford
+    Kingsbridge
+    slave
+    Southern_Rebels
+    150 150 150
+    grain, iron
+    6
+    4
+    religions { catholic 95 pagan 5 }
+Sunport
+    Solmara
+    southreach
+    Southern_Rebels
+    170 30 35
+    wine, fish
+    6
+    4
+    religions { catholic 100 }
+Vinehill
+    Vitella
+    southreach
+    Southern_Rebels
+    200 60 60
+    wine
+    4
+    3
+    religions { catholic 100 }
+Redcliff
+    Rubrum
+    slave
+    Southern_Rebels
+    160 80 40
+    salt
+    3
+    1
+    religions { catholic 70 pagan 30 }
+Grassmarch
+    Ordubazar
+    steppe_horde
+    Steppe_Rebels
+    200 150 40
+    horses
+    4
+    2
+    religions { pagan 90 catholic 10 }
+Dustfields
+    Kumtepe
+    steppe_horde
+    Steppe_Rebels
+    180 170 90
+    horses, salt
+    3
+    1
+    religions { pagan 100 }
