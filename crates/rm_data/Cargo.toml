@@ -1,7 +1,9 @@
 [package]
 name = "rm_data"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
 description = "Парсеры текстовых файлов данных в стиле Medieval II (юниты, фракции)"
 publish = false
 
