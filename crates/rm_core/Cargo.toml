@@ -1,0 +1,16 @@
+[package]
+name = "rm_core"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "Data-oriented ядро Reforged Medieval: ECS, система задач, аллокаторы, детерминированная симуляция"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# Ядро сознательно не тянет внешних зависимостей: полный контроль над
+# раскладкой памяти и потоками (см. docs/adr/ecs.md).
+[dependencies]
+
+[[bench]]
+name = "core_bench"
+harness = false
