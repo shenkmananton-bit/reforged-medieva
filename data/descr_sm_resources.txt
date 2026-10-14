@@ -1,0 +1,48 @@
+;
+; descr_sm_resources.txt — ресурсы карты кампании Reforged Medieval.
+; Это наши собственные примерные данные (заглушки), а не файлы оригинальной игры.
+; trade_value — сколько денариев за ход ресурс приносит региону.
+; Формат описан в docs/modding/campaign.md
+;
+
+type            grain
+trade_value     20
+item            models_strat/resource_grain.cas
+icon            ui/resources/resource_grain.tga
+
+type            timber
+trade_value     30
+item            models_strat/resource_timber.cas
+icon            ui/resources/resource_timber.tga
+
+type            wine
+trade_value     45
+item            models_strat/resource_wine.cas
+icon            ui/resources/resource_wine.tga
+
+type            iron
+trade_value     40
+item            models_strat/resource_iron.cas
+icon            ui/resources/resource_iron.tga
+has_mine
+
+type            furs
+trade_value     35
+item            models_strat/resource_furs.cas
+icon            ui/resources/resource_furs.tga
+
+type            horses
+trade_value     30
+item            models_strat/resource_horses.cas
+icon            ui/resources/resource_horses.tga
+
+type            salt
+trade_value     50
+item            models_strat/resource_salt.cas
+icon            ui/resources/resource_salt.tga
+has_mine
+
+type            fish
+trade_value     25
+item            models_strat/resource_fish.cas
+icon            ui/resources/resource_fish.tga

@@ -9,6 +9,7 @@
 |---|---|---|
 | `data/export_descr_unit.txt` | Юниты: состав отряда, оружие, броня, мораль, цена, кто может нанимать | [export_descr_unit.md](export_descr_unit.md) |
 | `data/descr_sm_factions.txt` | Фракции: культура, религия, цвета, особые возможности | [descr_sm_factions.md](descr_sm_factions.md) |
+| Файлы кампании: `descr_regions.txt`, `descr_sm_resources.txt`, `descr_strat.txt`, `descr_rm_campaign.txt`, `descr_rm_regions.txt` | Регионы, ресурсы, стартовая расстановка, числа экономики, соседство регионов | [campaign.md](campaign.md) |
 
 ## Общие правила для всех файлов
 

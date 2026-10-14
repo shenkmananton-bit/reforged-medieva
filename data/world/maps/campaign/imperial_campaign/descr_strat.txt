@@ -1,0 +1,192 @@
+;
+; descr_strat.txt — стартовая расстановка кампании Reforged Medieval.
+; Это наши собственные примерные данные (заглушки), а не файлы оригинальной игры.
+; Порядок фракций в файле — порядок их ходов.
+; Формат описан в docs/modding/campaign.md
+;
+
+campaign        imperial_campaign
+
+playable
+    northmark
+    southreach
+end
+unlockable
+    steppe_horde
+end
+nonplayable
+    slave
+end
+
+start_date      1080 summer
+end_date        1230 winter
+timescale       2.00
+
+; ---------------------------------------------------------------- Нортмарк
+faction         northmark, comfortable caution
+ai_label        catholic
+denari          4000
+denari_kings_purse  1200
+
+settlement
+{
+    level           town
+    region          Ostmark
+    year_founded    0
+    population      2400
+    plan_set        default_set
+    faction_creator northmark
+    building
+    {
+        type core_building wooden_pallisade
+    }
+}
+
+settlement
+{
+    level           village
+    region          Westfold
+    year_founded    0
+    population      800
+    plan_set        default_set
+    faction_creator northmark
+}
+
+character   Aldric, named character, male, leader, age 41, x 20, y 60
+army
+unit        Shield Wall Spearmen        exp 1 armour 0 weapon_lvl 0
+unit        Shield Wall Spearmen        exp 0 armour 0 weapon_lvl 0
+unit        Village Levy                exp 0 armour 0 weapon_lvl 0
+unit        Village Levy                exp 0 armour 0 weapon_lvl 0
+
+character   Bertram, named character, male, heir, age 19, x 8, y 58
+army
+unit        Village Levy                exp 0 armour 0 weapon_lvl 0
+
+; ---------------------------------------------------------------- Южный Предел
+faction         southreach, balanced smith
+ai_label        catholic
+denari          5000
+denari_kings_purse  1200
+
+settlement
+{
+    level           city
+    region          Sunport
+    year_founded    0
+    population      5200
+    plan_set        default_set
+    faction_creator southreach
+    building
+    {
+        type core_building wooden_wall
+    }
+}
+
+settlement
+{
+    level           town
+    region          Vinehill
+    year_founded    0
+    population      1800
+    plan_set        default_set
+    faction_creator southreach
+}
+
+character   Lucan, named character, male, leader, age 50, x 12, y 20
+army
+unit        Crossbow Militia            exp 1 armour 0 weapon_lvl 0
+unit        Crossbow Militia            exp 0 armour 0 weapon_lvl 0
+unit        Village Levy                exp 0 armour 0 weapon_lvl 0
+unit        Village Levy                exp 0 armour 0 weapon_lvl 0
+
+character   Marco, named character, male, heir, age 24, x 26, y 22
+army
+unit        Crossbow Militia            exp 0 armour 0 weapon_lvl 0
+
+; ---------------------------------------------------------------- Степная Орда
+faction         steppe_horde, fortified genghis
+ai_label        pagan
+denari          3000
+denari_kings_purse  1000
+
+settlement
+{
+    level           town
+    region          Grassmarch
+    year_founded    0
+    population      1600
+    plan_set        default_set
+    faction_creator steppe_horde
+}
+
+settlement
+{
+    level           village
+    region          Dustfields
+    year_founded    0
+    population      700
+    plan_set        default_set
+    faction_creator steppe_horde
+}
+
+character   Toghan, named character, male, leader, age 36, x 50, y 52
+army
+unit        Steppe Horse Archers        exp 1 armour 0 weapon_lvl 0
+unit        Steppe Horse Archers        exp 0 armour 0 weapon_lvl 0
+unit        Steppe Horse Archers        exp 0 armour 0 weapon_lvl 0
+
+; ---------------------------------------------------------------- Мятежники
+faction         slave, slave_faction
+ai_label        slave_faction
+denari          2000
+denari_kings_purse  500
+
+settlement
+{
+    level           town
+    region          Kingsford
+    year_founded    0
+    population      2000
+    plan_set        default_set
+    faction_creator slave
+}
+
+settlement
+{
+    level           village
+    region          Hollowmere
+    year_founded    0
+    population      600
+    plan_set        default_set
+    faction_creator slave
+}
+
+settlement
+{
+    level           village
+    region          Greywater
+    year_founded    0
+    population      700
+    plan_set        default_set
+    faction_creator slave
+}
+
+settlement
+{
+    level           village
+    region          Redcliff
+    year_founded    0
+    population      500
+    plan_set        default_set
+    faction_creator slave
+}
+
+character   Gerold the Outlaw, general, male, age 30, x 24, y 42
+army
+unit        Village Levy                exp 0 armour 0 weapon_lvl 0
+unit        Village Levy                exp 0 armour 0 weapon_lvl 0
+
+character   Sela the Bandit, general, female, age 28, x 40, y 28
+army
+unit        Village Levy                exp 0 armour 0 weapon_lvl 0
