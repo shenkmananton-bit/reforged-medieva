@@ -1,0 +1,15 @@
+[package]
+name = "rm_campaign"
+description = "Правила кампании Reforged Medieval: фракции, регионы и поселения, порядок ходов, экономика, движение армий"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+# Слой 2а (симуляция): только rm_core и rm_data, никакого рендера и окон.
+# См. docs/adr/crate-map.md.
+[dependencies]
+rm_core = { path = "../rm_core" }
+rm_data = { path = "../rm_data" }
