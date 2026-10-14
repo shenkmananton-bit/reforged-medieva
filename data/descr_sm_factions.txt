@@ -1,0 +1,56 @@
+;
+; descr_sm_factions.txt — фракции Reforged Medieval.
+; Это наши собственные примерные данные (заглушки), а не файлы оригинальной игры.
+; Формат описан в docs/modding/descr_sm_factions.md
+;
+
+faction                     northmark
+culture                     northern_european
+religion                    catholic
+symbol                      models_strat/symbol_northmark.cas
+rebel_symbol                models_strat/symbol_rebels.cas
+primary_colour              red 40, green 70, blue 160
+secondary_colour            red 230, green 220, blue 200
+loading_logo                loading_screen/symbols/symbol128_northmark.tga
+standard_index              0
+logon_logo                  menu/symbols/fe_logos/northmark.tga
+custom_battle_availability  yes
+can_sap                     no
+prefers_naval_invasions     yes
+can_have_princess           yes
+has_family_tree             yes
+
+faction                     southreach
+culture                     southern_european
+religion                    catholic
+symbol                      models_strat/symbol_southreach.cas
+rebel_symbol                models_strat/symbol_rebels.cas
+primary_colour              red 170, green 30, blue 35
+secondary_colour            red 240, green 200, blue 60
+standard_index              1
+custom_battle_availability  yes
+can_sap                     yes
+prefers_naval_invasions     no
+can_have_princess           yes
+has_family_tree             yes
+
+faction                     steppe_horde
+culture                     steppe
+religion                    pagan
+symbol                      models_strat/symbol_steppe_horde.cas
+rebel_symbol                models_strat/symbol_rebels.cas
+primary_colour              red 200, green 150, blue 40
+secondary_colour            red 60, green 40, blue 20
+standard_index              2
+custom_battle_availability  yes
+can_sap                     no
+prefers_naval_invasions     no
+can_have_princess           no
+has_family_tree             yes
+
+faction                     slave       ; мятежники
+culture                     southern_european
+religion                    catholic
+primary_colour              red 90, green 90, blue 90
+secondary_colour            red 160, green 160, blue 160
+custom_battle_availability  no
