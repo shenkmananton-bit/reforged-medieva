@@ -6,6 +6,9 @@
 //!    (GPU instancing, хак H-13), затем полупрозрачные метки на земле;
 //! 3. интерфейс — все прямоугольники и буквы одним вызовом (хак H-25).
 //!
+//! В режиме карты кампании слой 1 заменяется картой из `rm_campaign_map`
+//! (её ресурсы и конвейеры живут там, здесь только вызов).
+//!
 //! Объяснение: `docs/app/vulkan-init.md`, `docs/app/frame.md`, `docs/app/render.md`.
 
 mod context;
@@ -14,8 +17,10 @@ pub mod mesh;
 mod pipelines;
 mod swapchain;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use ash::vk;
+use rm_campaign_map::gpu::{GpuRefs, MapConstants, MapRenderer};
+use rm_campaign_map::{BakedMap, Political, TerrainMesh};
 use winit::window::Window;
 
 use context::VulkanContext;
@@ -49,6 +54,14 @@ pub struct Frame<'a> {
     /// Полупрозрачные круги на земле (тени, выделение, точки назначения).
     pub decals: &'a [Instance],
     pub ui: &'a [UiRect],
+    /// Карта кампании вместо земли битвы (если загружена, см. [`Renderer::load_campaign_map`]).
+    pub campaign: Option<CampaignFrame<'a>>,
+}
+
+/// Что карте кампании нужно в кадре.
+pub struct CampaignFrame<'a> {
+    pub constants: MapConstants,
+    pub political: &'a Political,
 }
 
 /// Сколько кадров CPU может готовить, пока GPU рисует предыдущие.
@@ -98,6 +111,8 @@ pub struct Renderer {
     vsync: bool,
     window_size: (u32, u32),
     needs_recreate: bool,
+    /// Ресурсы карты кампании, если включён её режим.
+    map: Option<MapRenderer>,
 }
 
 impl Renderer {
@@ -174,7 +189,29 @@ impl Renderer {
             vsync,
             window_size,
             needs_recreate: false,
+            map: None,
         })
+    }
+
+    /// Загружает карту кампании в видеопамять. После этого кадры с
+    /// [`Frame::campaign`] рисуют карту вместо земли битвы.
+    pub fn load_campaign_map(&mut self, baked: &BakedMap, mesh: &TerrainMesh) -> Result<()> {
+        if !gpu::has_stencil(self.depth_format) {
+            bail!("видеокарта не дала буфер глубины со stencil, а он нужен для границ на карте");
+        }
+        let refs = GpuRefs {
+            instance: &self.ctx.instance,
+            physical_device: self.ctx.physical_device,
+            device: &self.ctx.device,
+            queue: self.ctx.queue,
+            queue_family: self.ctx.queue_family,
+        };
+        let map = MapRenderer::new(&refs, self.render_pass, FRAMES_IN_FLIGHT, baked, mesh)?;
+        if let Some(mut old) = self.map.replace(map) {
+            unsafe { self.ctx.device.device_wait_idle() }?;
+            old.destroy(&self.ctx.device);
+        }
+        Ok(())
     }
 
     pub fn gpu_name(&self) -> &str {
@@ -204,6 +241,7 @@ impl Renderer {
 
         let device = &self.ctx.device;
         let frame = &mut self.frames[self.frame_index];
+        let campaign = scene.campaign.as_ref().filter(|_| self.map.is_some());
 
         // 1. Ждём, пока GPU закончит кадр, который рисовался в этом слоте раньше.
         unsafe { device.wait_for_fences(&[frame.in_flight], true, u64::MAX) }?;
@@ -243,6 +281,9 @@ impl Renderer {
         let decal_first = written as u32;
         let decal_count = frame.instances.write(written * isize, scene.decals) as u32;
         let ui_count = frame.ui.write(0, scene.ui) as u32;
+        if let (Some(map), Some(c)) = (self.map.as_mut(), campaign) {
+            map.write_tables(self.frame_index, c.political);
+        }
 
         let cmd = frame.command_buffer;
         let extent = self.swapchain.extent;
@@ -294,7 +335,10 @@ impl Renderer {
                 }],
             );
 
-            // Слой 1: земля.
+            // Слой 1: земля или карта кампании.
+            if let (Some(map), Some(c)) = (&self.map, campaign) {
+                map.record(device, cmd, self.frame_index, &c.constants);
+            }
             let constants = as_bytes(&scene.constants);
             device.cmd_push_constants(
                 cmd,
@@ -303,8 +347,14 @@ impl Renderer {
                 0,
                 constants,
             );
-            device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, self.pipelines.ground);
-            device.cmd_draw(cmd, 6, 1, 0, 0);
+            if campaign.is_none() {
+                device.cmd_bind_pipeline(
+                    cmd,
+                    vk::PipelineBindPoint::GRAPHICS,
+                    self.pipelines.ground,
+                );
+                device.cmd_draw(cmd, 6, 1, 0, 0);
+            }
 
             // Слой 2: модели, по одному вызову на тип (instancing), потом метки.
             device.cmd_bind_vertex_buffers(
@@ -404,6 +454,9 @@ impl Renderer {
             self.render_pass =
                 create_render_pass(device, self.swapchain.format, self.depth_format)?;
             self.pipelines = Pipelines::new(device, self.render_pass)?;
+            if let Some(map) = self.map.as_mut() {
+                map.recreate_pipelines(device, self.render_pass)?;
+            }
         }
         self.framebuffers =
             create_framebuffers(device, self.render_pass, &self.swapchain, self.depth.view)?;
@@ -426,6 +479,9 @@ impl Drop for Renderer {
                 f.ui.destroy(device);
             }
             self.vertices.destroy(device);
+            if let Some(map) = self.map.as_mut() {
+                map.destroy(device);
+            }
             self.pipelines.destroy(device);
             self.depth.destroy(device);
             device.destroy_command_pool(self.command_pool, None);
@@ -460,7 +516,8 @@ fn create_render_pass(
             .samples(vk::SampleCountFlags::TYPE_1)
             .load_op(vk::AttachmentLoadOp::CLEAR)
             .store_op(vk::AttachmentStoreOp::DONT_CARE)
-            .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+            // Stencil очищается каждый кадр: им пользуется карта кампании (H-03).
+            .stencil_load_op(vk::AttachmentLoadOp::CLEAR)
             .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
             .initial_layout(vk::ImageLayout::UNDEFINED)
             .final_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL),

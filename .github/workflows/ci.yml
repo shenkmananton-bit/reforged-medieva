@@ -58,12 +58,16 @@ jobs:
           sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers libvulkan1 xvfb libxkbcommon-x11-0 libx11-xcb1 libxcursor1 libxrandr2 libxi6
           export VK_ICD_FILENAMES=$(ls /usr/share/vulkan/icd.d/lvp_icd*.json | head -1)
           xvfb-run -a -s "-screen 0 1280x720x24" ./target/release/reforged-medieval --demo --frames 300
+          # Карта кампании: генерация, запекание, загрузка в видеопамять, 120 кадров.
+          xvfb-run -a -s "-screen 0 1280x720x24" ./target/release/reforged-medieval --campaign --demo --frames 120
 
       - name: Упаковка
         shell: bash
         run: |
           mkdir dist
           cp target/release/${{ matrix.exe }} dist/
+          # Ярлык для запуска карты кампании двойным щелчком (Windows).
+          printf 'start "" "%%~dp0reforged-medieval.exe" --campaign\r\n' > dist/campaign-map.bat
           cp docs/how-to-run.md dist/
           cp -r data dist/
       - uses: actions/upload-artifact@v4

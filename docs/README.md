@@ -8,6 +8,7 @@
 | [Как запустить](how-to-run.md) | Скачать готовую сборку или собрать самому |
 | [app/](app/README.md) | Приложение: окно, Vulkan, главный цикл, рендер битвы, управление, CI |
 | [adr/](adr/) | Архитектурные решения (ADR) и бюджеты производительности |
+| [campaign-map/](campaign-map/README.md) | Как рисуется карта кампании: рельеф, запечённый свет, границы, окраска владельцев (`crates/rm_campaign_map`) |
 | [battle/](battle/README.md) | Битва: движение, бой, мораль, ИИ (`crates/rm_battle`, `crates/rm_battle_ai`) |
 | [campaign/](campaign/README.md) | Кампания: очередь ходов, экономика, армии, автобой (`crates/rm_campaign`) |
 | [core/](core/) | Ядро симуляции на ECS (`crates/rm_core`) |

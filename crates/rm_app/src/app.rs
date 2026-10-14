@@ -124,6 +124,7 @@ impl App {
             meshes,
             decals,
             ui,
+            campaign: None,
         };
         if renderer.draw_frame(&frame)? == FrameOutcome::Presented {
             self.frames_presented += 1;

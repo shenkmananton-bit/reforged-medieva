@@ -22,4 +22,6 @@ glam = "0.30"
 winit = "0.30"
 rm_battle = { path = "../rm_battle" }
 rm_battle_ai = { path = "../rm_battle_ai" }
+rm_campaign_map = { path = "../rm_campaign_map" }
+rm_core = { path = "../rm_core" }
 rm_data = { path = "../rm_data" }

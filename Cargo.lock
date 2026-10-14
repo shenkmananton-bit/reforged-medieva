@@ -1267,6 +1267,8 @@ dependencies = [
  "log",
  "rm_battle",
  "rm_battle_ai",
+ "rm_campaign_map",
+ "rm_core",
  "rm_data",
  "winit",
 ]
@@ -1294,6 +1296,15 @@ version = "0.1.0"
 dependencies = [
  "rm_core",
  "rm_data",
+]
+
+[[package]]
+name = "rm_campaign_map"
+version = "0.1.0"
+dependencies = [
+ "ash",
+ "glam",
+ "rm_core",
 ]
 
 [[package]]

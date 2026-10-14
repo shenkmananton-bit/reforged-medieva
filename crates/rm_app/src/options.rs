@@ -20,6 +20,7 @@ Reforged Medieval
   --data <папка>    папка с данными игры (по умолчанию ищется data/ рядом)
   --seed <N>        зерно случайности битвы (по умолчанию 1)
   --demo            обе армии под управлением ИИ (смотреть бой со стороны)
+  --campaign        открыть карту кампании вместо битвы (--seed меняет карту)
   -h, --help        показать эту справку
 
 Переменные окружения:
@@ -37,6 +38,7 @@ pub struct Options {
     pub data_dir: Option<PathBuf>,
     pub seed: u64,
     pub demo: bool,
+    pub campaign: bool,
     pub show_help: bool,
 }
 
@@ -51,6 +53,7 @@ impl Default for Options {
             data_dir: None,
             seed: 1,
             demo: false,
+            campaign: false,
             show_help: false,
         }
     }
@@ -85,6 +88,7 @@ impl Options {
                         .with_context(|| format!("--seed: «{raw}» не число"))?;
                 }
                 "--demo" => opts.demo = true,
+                "--campaign" => opts.campaign = true,
                 "-h" | "--help" => opts.show_help = true,
                 other => bail!("неизвестный параметр {other}; см. --help"),
             }
@@ -133,8 +137,10 @@ mod tests {
             "--seed",
             "42",
             "--demo",
+            "--campaign",
         ])
         .unwrap();
+        assert!(o.campaign);
         assert_eq!(o.data_dir, Some(PathBuf::from("mods/x")));
         assert_eq!(o.seed, 42);
         assert!(o.demo);
