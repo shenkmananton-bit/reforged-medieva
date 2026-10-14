@@ -269,10 +269,7 @@ impl<'a> R<'a> {
         Ok(Image {
             width: w,
             height: h,
-            pixels: raw
-                .chunks_exact(4)
-                .map(|c| [c[0], c[1], c[2], c[3]])
-                .collect(),
+            pixels: raw.as_chunks::<4>().0.to_vec(),
         })
     }
     fn mesh(&mut self) -> Result<Mesh> {

@@ -36,7 +36,7 @@ fn every_vertex_samples_inside_one_atlas_region() {
             let LodGeometry::Mesh(mesh) = &level.geometry else {
                 continue;
             };
-            for tri in mesh.indices.chunks_exact(3) {
+            for tri in mesh.indices.as_chunks::<3>().0 {
                 let uv0 = mesh.vertices[tri[0] as usize].uv;
                 let region = lib
                     .materials

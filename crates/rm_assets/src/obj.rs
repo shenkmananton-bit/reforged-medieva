@@ -24,7 +24,7 @@ pub fn to_obj(mesh: &Mesh, mtl: &str, material: &str) -> String {
     for v in &mesh.vertices {
         let _ = writeln!(s, "vn {} {} {}", v.normal[0], v.normal[1], v.normal[2]);
     }
-    for t in mesh.indices.chunks_exact(3) {
+    for t in mesh.indices.as_chunks::<3>().0 {
         let (a, b, c) = (t[0] + 1, t[1] + 1, t[2] + 1);
         let _ = writeln!(s, "f {a}/{a}/{a} {b}/{b}/{b} {c}/{c}/{c}");
     }
