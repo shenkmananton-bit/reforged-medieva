@@ -1,0 +1,14 @@
+[package]
+name = "rm_data"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Парсеры текстовых файлов данных в стиле Medieval II (юниты, фракции)"
+publish = false
+
+[dependencies]
+
+[[bin]]
+name = "rm_modcheck"
+path = "src/bin/rm_modcheck.rs"

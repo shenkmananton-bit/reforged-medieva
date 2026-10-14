@@ -1,0 +1,77 @@
+;
+; export_descr_unit.txt — юниты Reforged Medieval.
+; Это наши собственные примерные данные (заглушки), а не файлы оригинальной игры.
+; Формат описан в docs/modding/export_descr_unit.md
+;
+
+type             Village Levy
+dictionary       Village_Levy        ; Деревенское ополчение
+category         infantry
+class            light
+voice_type       Light_1
+banner faction   main_infantry
+soldier          levy_peasant, 60, 0, 1
+attributes       sea_faring, hide_forest, can_withdraw
+formation        1.2, 1.2, 2.4, 2.4, 6, square
+stat_health      1, 0
+stat_pri         2, 1, no, 0, 0, melee, simple, blunt, none, 25, 1
+stat_pri_armour  0, 1, 0, flesh
+stat_mental      2, low, untrained
+stat_charge_dist 25
+stat_cost        1, 120, 60, 30, 30, 120, 6, 120
+ownership        northmark, southreach, slave
+
+type             Shield Wall Spearmen
+dictionary       Shield_Wall_Spearmen ; Копейщики стены щитов
+category         infantry
+class            spearmen
+voice_type       Heavy_1
+banner faction   main_spearmen
+soldier          spearman_northern, 60, 0, 1
+officer          officer_northern
+attributes       sea_faring, hide_forest, can_withdraw, can_formed_charge
+formation        1, 1.2, 2, 2.4, 4, square, schiltrom
+stat_health      1, 0
+stat_pri         5, 3, no, 0, 0, melee, simple, piercing, spear, 25, 1
+stat_pri_armour  4, 4, 4, metal
+stat_mental      6, disciplined, trained
+stat_charge_dist 30
+stat_cost        1, 380, 140, 70, 60, 380, 4, 380
+ownership        northmark
+
+type             Crossbow Militia
+dictionary       Crossbow_Militia    ; Городские арбалетчики
+category         infantry
+class            missile
+voice_type       Light_1
+banner faction   main_missile
+soldier          crossbowman_southern, 48, 0, 1
+attributes       sea_faring, can_withdraw
+formation        1.2, 1.2, 2.4, 2.4, 3, square
+stat_health      1, 0
+stat_pri         7, 2, crossbow_bolt, 120, 25, missile, crossbow, piercing, none, 25, 1
+stat_sec         3, 1, no, 0, 0, melee, simple, blunt, none, 25, 1
+stat_pri_armour  3, 1, 0, leather
+stat_mental      5, normal, trained
+stat_charge_dist 25
+stat_cost        1, 420, 160, 80, 60, 420, 4, 420
+ownership        southreach
+
+type             Steppe Horse Archers
+dictionary       Steppe_Horse_Archers ; Степные конные лучники
+category         cavalry
+class            missile
+voice_type       Light_1
+banner faction   main_cavalry
+soldier          horse_archer_steppe, 40, 0, 1.4
+mount            steppe pony
+attributes       sea_faring, hide_improved_forest, can_withdraw, cantabrian_circle
+formation        1.5, 4, 3, 6, 2, square
+stat_health      1, 1
+stat_pri         6, 2, arrow, 150, 30, missile, archery, piercing, none, 25, 1
+stat_sec         4, 3, no, 0, 0, melee, simple, slashing, sword, 25, 1
+stat_pri_armour  2, 4, 0, leather
+stat_mental      7, impetuous, trained
+stat_charge_dist 40
+stat_cost        1, 600, 200, 90, 70, 600, 3, 600
+ownership        steppe_horde
