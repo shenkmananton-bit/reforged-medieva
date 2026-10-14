@@ -1,0 +1,71 @@
+# Автоматическая проверка и сборка. Как читать результаты: docs/app/ci.md
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  lint:
+    name: Формат и clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  build:
+    name: Сборка и тесты (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+            exe: reforged-medieval.exe
+          - name: linux
+            os: ubuntu-latest
+            exe: reforged-medieval
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.name }}
+      - name: Тесты
+        run: cargo test --workspace --release
+      - name: Сборка релиза
+        run: cargo build --workspace --release
+
+      # На Linux запускаем само приложение на программном Vulkan (lavapipe)
+      # в виртуальном экране: окно открывается, 120 кадров рисуется, выход.
+      - name: Пробный запуск (Linux, программный Vulkan)
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers libvulkan1 xvfb libxkbcommon-x11-0 libx11-xcb1 libxcursor1 libxrandr2 libxi6
+          export VK_ICD_FILENAMES=$(ls /usr/share/vulkan/icd.d/lvp_icd*.json | head -1)
+          xvfb-run -a -s "-screen 0 1280x720x24" ./target/release/reforged-medieval --frames 120
+
+      - name: Упаковка
+        shell: bash
+        run: |
+          mkdir dist
+          cp target/release/${{ matrix.exe }} dist/
+          cp docs/how-to-run.md dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reforged-medieval-${{ matrix.name }}
+          path: dist/
+          if-no-files-found: error

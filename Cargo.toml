@@ -1,0 +1,16 @@
+# Корневой workspace проекта Reforged Medieval.
+# Любой крейт в папке crates/ автоматически становится частью workspace.
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/shenkmananton-bit/reforged-medieva"
+
+[profile.release]
+# Быстрая сборка релиза для тестов у Антона; LTO включим позже, когда кода станет больше.
+debug = "line-tables-only"
