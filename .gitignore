@@ -4,3 +4,6 @@
 .DS_Store
 .idea/
 .vscode/
+
+# Пакет ассетов, собранный rm_assetc (производный файл, см. docs/assets/rm_assetc.md)
+/assets/

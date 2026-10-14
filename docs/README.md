@@ -10,6 +10,7 @@
 | [adr/](adr/) | Архитектурные решения (ADR) и бюджеты производительности |
 | [campaign-map/](campaign-map/README.md) | Как рисуется карта кампании: рельеф, запечённый свет, границы, окраска владельцев (`crates/rm_campaign_map`) |
 | [battle/](battle/README.md) | Битва: движение, бой, мораль, ИИ (`crates/rm_battle`, `crates/rm_battle_ai`) |
+| [assets/](assets/README.md) | Ассеты: процедурные модели, текстуры, атласы, LOD, пакет `.rmpak` (`crates/rm_assets`) |
 | [campaign/](campaign/README.md) | Кампания: очередь ходов, экономика, армии, автобой (`crates/rm_campaign`) |
 | [core/](core/) | Ядро симуляции на ECS (`crates/rm_core`) |
 | [data/](data/) | Чтение текстовых файлов данных (`crates/rm_data`) |

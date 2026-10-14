@@ -1274,6 +1274,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rm_assets"
+version = "0.1.0"
+dependencies = [
+ "rm_core",
+]
+
+[[package]]
 name = "rm_battle"
 version = "0.1.0"
 dependencies = [

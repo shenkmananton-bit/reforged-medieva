@@ -1,0 +1,21 @@
+[package]
+name = "rm_assets"
+description = "Конвейер ассетов Reforged Medieval: процедурные low-poly модели, текстуры, атласы, LOD-цепочки, пакеты .rmpak"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+# Слой 1 (фундамент): зависит только от rm_core (детерминированные sin/cos).
+# Внешних библиотек нет: форматы TGA, OBJ и .rmpak пишутся вручную.
+# См. docs/adr/crate-map.md и docs/assets/README.md.
+[dependencies]
+rm_core = { path = "../rm_core" }
+
+# Офлайн-сборщик ассетов (в ADR он назван tools/rm_assetc). Живёт здесь,
+# как rm_modcheck живёт в rm_data, потому что workspace собирает только crates/*.
+[[bin]]
+name = "rm_assetc"
+path = "src/bin/rm_assetc.rs"
