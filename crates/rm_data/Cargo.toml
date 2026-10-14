@@ -1,0 +1,12 @@
+[package]
+name = "rm_data"
+version = "0.1.0"
+edition = "2024"
+description = "Парсеры текстовых файлов данных в стиле Medieval II (юниты, фракции)"
+publish = false
+
+[dependencies]
+
+[[bin]]
+name = "rm_modcheck"
+path = "src/bin/rm_modcheck.rs"
