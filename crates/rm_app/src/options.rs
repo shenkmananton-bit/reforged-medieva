@@ -3,6 +3,8 @@
 //! Пример: `reforged-medieval --tick-rate 30 --no-vsync --frames 300`.
 //! Полный список: `reforged-medieval --help` или `docs/how-to-run.md`.
 
+use std::path::PathBuf;
+
 use anyhow::{Context, Result, bail};
 
 pub const HELP: &str = "\
@@ -15,6 +17,9 @@ Reforged Medieval
   --frames <N>      закрыться после N кадров (для автоматических проверок)
   --width <N>       ширина окна (по умолчанию 1280)
   --height <N>      высота окна (по умолчанию 720)
+  --data <папка>    папка с данными игры (по умолчанию ищется data/ рядом)
+  --seed <N>        зерно случайности битвы (по умолчанию 1)
+  --demo            обе армии под управлением ИИ (смотреть бой со стороны)
   -h, --help        показать эту справку
 
 Переменные окружения:
@@ -29,6 +34,9 @@ pub struct Options {
     pub exit_after_frames: Option<u64>,
     pub width: u32,
     pub height: u32,
+    pub data_dir: Option<PathBuf>,
+    pub seed: u64,
+    pub demo: bool,
     pub show_help: bool,
 }
 
@@ -40,6 +48,9 @@ impl Default for Options {
             exit_after_frames: None,
             width: 1280,
             height: 720,
+            data_dir: None,
+            seed: 1,
+            demo: false,
             show_help: false,
         }
     }
@@ -53,7 +64,7 @@ impl Options {
         while let Some(arg) = args.next() {
             let mut value = |name: &str| {
                 args.next()
-                    .with_context(|| format!("после {name} нужно число"))
+                    .with_context(|| format!("после {name} нужно значение"))
             };
             match arg.as_str() {
                 "--tick-rate" => {
@@ -66,6 +77,14 @@ impl Options {
                 }
                 "--width" => opts.width = parse_positive("--width", &value("--width")?)?,
                 "--height" => opts.height = parse_positive("--height", &value("--height")?)?,
+                "--data" => opts.data_dir = Some(PathBuf::from(value("--data")?)),
+                "--seed" => {
+                    let raw = value("--seed")?;
+                    opts.seed = raw
+                        .parse()
+                        .with_context(|| format!("--seed: «{raw}» не число"))?;
+                }
+                "--demo" => opts.demo = true,
                 "-h" | "--help" => opts.show_help = true,
                 other => bail!("неизвестный параметр {other}; см. --help"),
             }
@@ -109,8 +128,16 @@ mod tests {
             "800",
             "--height",
             "600",
+            "--data",
+            "mods/x",
+            "--seed",
+            "42",
+            "--demo",
         ])
         .unwrap();
+        assert_eq!(o.data_dir, Some(PathBuf::from("mods/x")));
+        assert_eq!(o.seed, 42);
+        assert!(o.demo);
         assert_eq!(o.tick_rate, 30);
         assert!(!o.vsync);
         assert_eq!(o.exit_after_frames, Some(5));

@@ -1,0 +1,18 @@
+[package]
+name = "rm_battle_ai"
+description = "Тактический ИИ битвы Reforged Medieval: генерал раздаёт приказы отрядам"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+# Слой 2а (симуляция). ИИ — часть симуляции: он только читает битву
+# и возвращает команды, как игрок (docs/adr/determinism.md).
+[dependencies]
+rm_battle = { path = "../rm_battle" }
+rm_core = { path = "../rm_core" }
+
+[dev-dependencies]
+rm_data = { path = "../rm_data" }

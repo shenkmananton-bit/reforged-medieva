@@ -49,14 +49,15 @@ jobs:
         run: cargo build --workspace --release
 
       # На Linux запускаем само приложение на программном Vulkan (lavapipe)
-      # в виртуальном экране: окно открывается, 120 кадров рисуется, выход.
+      # в виртуальном экране: окно открывается, битва ИИ против ИИ рисуется
+      # 300 кадров, выход.
       - name: Пробный запуск (Linux, программный Vulkan)
         if: matrix.name == 'linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers libvulkan1 xvfb libxkbcommon-x11-0 libx11-xcb1 libxcursor1 libxrandr2 libxi6
           export VK_ICD_FILENAMES=$(ls /usr/share/vulkan/icd.d/lvp_icd*.json | head -1)
-          xvfb-run -a -s "-screen 0 1280x720x24" ./target/release/reforged-medieval --frames 120
+          xvfb-run -a -s "-screen 0 1280x720x24" ./target/release/reforged-medieval --demo --frames 300
 
       - name: Упаковка
         shell: bash
@@ -64,6 +65,7 @@ jobs:
           mkdir dist
           cp target/release/${{ matrix.exe }} dist/
           cp docs/how-to-run.md dist/
+          cp -r data dist/
       - uses: actions/upload-artifact@v4
         with:
           name: reforged-medieval-${{ matrix.name }}

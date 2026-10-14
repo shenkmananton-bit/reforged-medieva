@@ -1,11 +1,17 @@
 //! Рендер: всё, что связано с Vulkan.
 //!
-//! Сейчас он умеет одно — залить окно цветом и показать кадр. Но вокруг
-//! этого уже стоит вся обязательная «обвязка»: цепочка показа, проход
-//! рендера, синхронизация CPU и GPU, пересоздание при изменении размера.
-//! Объяснение: `docs/app/vulkan-init.md` и `docs/app/frame.md`.
+//! Каждый кадр рисуется за один проход рендера в три слоя:
+//! 1. земля (один большой прямоугольник, трава считается в шейдере);
+//! 2. модели солдат, коней, стрел и знамён — по одному вызову на тип модели
+//!    (GPU instancing, хак H-13), затем полупрозрачные метки на земле;
+//! 3. интерфейс — все прямоугольники и буквы одним вызовом (хак H-25).
+//!
+//! Объяснение: `docs/app/vulkan-init.md`, `docs/app/frame.md`, `docs/app/render.md`.
 
 mod context;
+mod gpu;
+pub mod mesh;
+mod pipelines;
 mod swapchain;
 
 use anyhow::Result;
@@ -13,7 +19,37 @@ use ash::vk;
 use winit::window::Window;
 
 use context::VulkanContext;
+use gpu::{DepthImage, HostBuffer};
+use mesh::{Instance, MESH_COUNT, MeshRange};
+pub use pipelines::FrameConstants;
+use pipelines::Pipelines;
 use swapchain::Swapchain;
+
+/// Сколько экземпляров моделей помещается в кадр (солдаты, кони, стрелы, метки).
+const MAX_INSTANCES: u64 = 120_000;
+/// Сколько прямоугольников интерфейса помещается в кадр.
+const MAX_UI_RECTS: u64 = 60_000;
+
+/// Прямоугольник интерфейса в пикселях окна. Раскладка совпадает с `ui.vert`.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UiRect {
+    /// x, y (левый верхний угол), ширина, высота.
+    pub rect: [f32; 4],
+    pub color: [f32; 4],
+}
+
+/// Всё, что нужно нарисовать в одном кадре.
+pub struct Frame<'a> {
+    /// Цвет неба.
+    pub clear: [f32; 4],
+    pub constants: FrameConstants,
+    /// Непрозрачные модели, по списку экземпляров на каждый тип модели.
+    pub meshes: &'a [Vec<Instance>; MESH_COUNT],
+    /// Полупрозрачные круги на земле (тени, выделение, точки назначения).
+    pub decals: &'a [Instance],
+    pub ui: &'a [UiRect],
+}
 
 /// Сколько кадров CPU может готовить, пока GPU рисует предыдущие.
 /// 2 — стандартный баланс между задержкой ввода и загрузкой GPU.
@@ -31,6 +67,10 @@ pub enum FrameOutcome {
 /// Ресурсы одного «кадра в полёте».
 struct FrameSync {
     command_buffer: vk::CommandBuffer,
+    /// Экземпляры моделей и интерфейс этого кадра (у каждого кадра в полёте свои,
+    /// чтобы не переписать данные, которые GPU ещё читает).
+    instances: HostBuffer,
+    ui: HostBuffer,
     /// GPU сигналит, когда картинка из цепочки свободна для рисования.
     image_available: vk::Semaphore,
     /// CPU ждёт этот забор, прежде чем снова использовать буфер команд кадра.
@@ -41,8 +81,14 @@ pub struct Renderer {
     // Порядок важен только для чтения: уничтожение делает Drop вручную.
     ctx: VulkanContext,
     swapchain: Swapchain,
+    depth_format: vk::Format,
+    depth: DepthImage,
     render_pass: vk::RenderPass,
+    pipelines: Pipelines,
     framebuffers: Vec<vk::Framebuffer>,
+    /// Все модели в одном буфере вершин.
+    vertices: HostBuffer,
+    mesh_ranges: [MeshRange; MESH_COUNT],
     /// По одному семафору «рисование закончено» на каждую картинку цепочки:
     /// так показ картинки не путается с соседними кадрами.
     render_finished: Vec<vk::Semaphore>,
@@ -60,8 +106,18 @@ impl Renderer {
         let size = window.inner_size();
         let window_size = (size.width, size.height);
         let swapchain = Swapchain::new(&ctx, window_size, vsync, vk::SwapchainKHR::null())?;
-        let render_pass = create_render_pass(&ctx.device, swapchain.format)?;
-        let framebuffers = create_framebuffers(&ctx.device, render_pass, &swapchain)?;
+        let depth_format = gpu::pick_depth_format(&ctx)?;
+        let depth = DepthImage::new(&ctx, depth_format, swapchain.extent)?;
+        let render_pass = create_render_pass(&ctx.device, swapchain.format, depth_format)?;
+        let pipelines = Pipelines::new(&ctx.device, render_pass)?;
+        let framebuffers = create_framebuffers(&ctx.device, render_pass, &swapchain, depth.view)?;
+        let (verts, mesh_ranges) = mesh::build_all();
+        let mut vertices = HostBuffer::new(
+            &ctx,
+            std::mem::size_of_val(verts.as_slice()) as u64,
+            vk::BufferUsageFlags::VERTEX_BUFFER,
+        )?;
+        vertices.write(0, &verts);
         let render_finished = create_semaphores(&ctx.device, swapchain.images.len())?;
 
         let pool_info = vk::CommandPoolCreateInfo::default()
@@ -81,8 +137,20 @@ impl Renderer {
                 // Забор создаётся «поднятым», чтобы первый кадр не ждал вечно.
                 let info = vk::FenceCreateInfo::default().flags(vk::FenceCreateFlags::SIGNALED);
                 let in_flight = unsafe { ctx.device.create_fence(&info, None) }?;
+                let instances = HostBuffer::new(
+                    &ctx,
+                    MAX_INSTANCES * std::mem::size_of::<Instance>() as u64,
+                    vk::BufferUsageFlags::VERTEX_BUFFER,
+                )?;
+                let ui = HostBuffer::new(
+                    &ctx,
+                    MAX_UI_RECTS * std::mem::size_of::<UiRect>() as u64,
+                    vk::BufferUsageFlags::VERTEX_BUFFER,
+                )?;
                 Ok(FrameSync {
                     command_buffer,
+                    instances,
+                    ui,
                     image_available,
                     in_flight,
                 })
@@ -92,8 +160,13 @@ impl Renderer {
         Ok(Self {
             ctx,
             swapchain,
+            depth_format,
+            depth,
             render_pass,
+            pipelines,
             framebuffers,
+            vertices,
+            mesh_ranges,
             render_finished,
             command_pool,
             frames,
@@ -114,8 +187,13 @@ impl Renderer {
         self.needs_recreate = true;
     }
 
-    /// Рисует один кадр, заливая окно цветом `color` (RGBA, 0..1).
-    pub fn draw_frame(&mut self, color: [f32; 4]) -> Result<FrameOutcome> {
+    /// Размер области рисования в пикселях.
+    pub fn extent(&self) -> (u32, u32) {
+        (self.swapchain.extent.width, self.swapchain.extent.height)
+    }
+
+    /// Рисует один кадр.
+    pub fn draw_frame(&mut self, scene: &Frame) -> Result<FrameOutcome> {
         // Свёрнутое окно имеет размер 0×0: рисовать некуда.
         if self.window_size.0 == 0 || self.window_size.1 == 0 {
             return Ok(FrameOutcome::Skipped);
@@ -125,7 +203,7 @@ impl Renderer {
         }
 
         let device = &self.ctx.device;
-        let frame = &self.frames[self.frame_index];
+        let frame = &mut self.frames[self.frame_index];
 
         // 1. Ждём, пока GPU закончит кадр, который рисовался в этом слоте раньше.
         unsafe { device.wait_for_fences(&[frame.in_flight], true, u64::MAX) }?;
@@ -153,26 +231,120 @@ impl Renderer {
         // Забор опускаем только когда точно отправим работу, иначе следующий кадр зависнет.
         unsafe { device.reset_fences(&[frame.in_flight]) }?;
 
-        // 3. Записываем команды: начать проход рендера (он и зальёт цветом), закончить.
+        // 3. Кладём экземпляры этого кадра в его буферы и записываем команды.
+        let mut draws = [(0u32, 0u32); MESH_COUNT];
+        let mut written = 0u64;
+        let isize = std::mem::size_of::<Instance>() as u64;
+        for (i, list) in scene.meshes.iter().enumerate() {
+            let n = frame.instances.write(written * isize, list) as u32;
+            draws[i] = (written as u32, n);
+            written += u64::from(n);
+        }
+        let decal_first = written as u32;
+        let decal_count = frame.instances.write(written * isize, scene.decals) as u32;
+        let ui_count = frame.ui.write(0, scene.ui) as u32;
+
         let cmd = frame.command_buffer;
+        let extent = self.swapchain.extent;
         unsafe {
             device.reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())?;
             let begin = vk::CommandBufferBeginInfo::default()
                 .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
             device.begin_command_buffer(cmd, &begin)?;
-            let clear = [vk::ClearValue {
-                color: vk::ClearColorValue { float32: color },
-            }];
+            let clear = [
+                vk::ClearValue {
+                    color: vk::ClearColorValue {
+                        float32: scene.clear,
+                    },
+                },
+                vk::ClearValue {
+                    depth_stencil: vk::ClearDepthStencilValue {
+                        depth: 1.0,
+                        stencil: 0,
+                    },
+                },
+            ];
             let pass = vk::RenderPassBeginInfo::default()
                 .render_pass(self.render_pass)
                 .framebuffer(self.framebuffers[image_index as usize])
                 .render_area(vk::Rect2D {
                     offset: vk::Offset2D::default(),
-                    extent: self.swapchain.extent,
+                    extent,
                 })
                 .clear_values(&clear);
             device.cmd_begin_render_pass(cmd, &pass, vk::SubpassContents::INLINE);
-            // Здесь в будущем будут команды рисования карты, юнитов и интерфейса.
+            device.cmd_set_viewport(
+                cmd,
+                0,
+                &[vk::Viewport {
+                    x: 0.0,
+                    y: 0.0,
+                    width: extent.width as f32,
+                    height: extent.height as f32,
+                    min_depth: 0.0,
+                    max_depth: 1.0,
+                }],
+            );
+            device.cmd_set_scissor(
+                cmd,
+                0,
+                &[vk::Rect2D {
+                    offset: vk::Offset2D::default(),
+                    extent,
+                }],
+            );
+
+            // Слой 1: земля.
+            let constants = as_bytes(&scene.constants);
+            device.cmd_push_constants(
+                cmd,
+                self.pipelines.world_layout,
+                vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                0,
+                constants,
+            );
+            device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, self.pipelines.ground);
+            device.cmd_draw(cmd, 6, 1, 0, 0);
+
+            // Слой 2: модели, по одному вызову на тип (instancing), потом метки.
+            device.cmd_bind_vertex_buffers(
+                cmd,
+                0,
+                &[self.vertices.handle, frame.instances.handle],
+                &[0, 0],
+            );
+            device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, self.pipelines.mesh);
+            for (i, &(first, count)) in draws.iter().enumerate() {
+                if count > 0 && i != mesh::MeshId::Disc as usize {
+                    let r = self.mesh_ranges[i];
+                    device.cmd_draw(cmd, r.count, count, r.first, first);
+                }
+            }
+            if decal_count > 0 {
+                let r = self.mesh_ranges[mesh::MeshId::Disc as usize];
+                device.cmd_bind_pipeline(
+                    cmd,
+                    vk::PipelineBindPoint::GRAPHICS,
+                    self.pipelines.decal,
+                );
+                device.cmd_draw(cmd, r.count, decal_count, r.first, decal_first);
+            }
+
+            // Слой 3: интерфейс.
+            if ui_count > 0 {
+                device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, self.pipelines.ui);
+                let screen = [extent.width as f32, extent.height as f32];
+                device.cmd_push_constants(
+                    cmd,
+                    self.pipelines.ui_layout,
+                    vk::ShaderStageFlags::VERTEX,
+                    0,
+                    as_bytes(&screen),
+                );
+                device.cmd_bind_vertex_buffers(cmd, 0, &[frame.ui.handle], &[0]);
+                device.cmd_draw(cmd, 6, ui_count, 0, 0);
+            }
+
             device.cmd_end_render_pass(cmd);
             device.end_command_buffer(cmd)?;
         }
@@ -217,18 +389,24 @@ impl Renderer {
         unsafe { device.device_wait_idle() }?;
         destroy_framebuffers(device, &mut self.framebuffers);
         destroy_semaphores(device, &mut self.render_finished);
+        self.depth.destroy(device);
 
         let old = self.swapchain.handle;
         let new = Swapchain::new(&self.ctx, self.window_size, self.vsync, old)?;
         let mut old_swapchain = std::mem::replace(&mut self.swapchain, new);
         old_swapchain.destroy(&self.ctx);
 
-        // Формат обычно тот же, но если сменился — нужен новый проход рендера.
+        self.depth = DepthImage::new(&self.ctx, self.depth_format, self.swapchain.extent)?;
+        // Формат обычно тот же, но если сменился — нужны новые проход рендера и конвейеры.
         if self.swapchain.format != old_swapchain.format {
+            self.pipelines.destroy(device);
             unsafe { device.destroy_render_pass(self.render_pass, None) };
-            self.render_pass = create_render_pass(device, self.swapchain.format)?;
+            self.render_pass =
+                create_render_pass(device, self.swapchain.format, self.depth_format)?;
+            self.pipelines = Pipelines::new(device, self.render_pass)?;
         }
-        self.framebuffers = create_framebuffers(device, self.render_pass, &self.swapchain)?;
+        self.framebuffers =
+            create_framebuffers(device, self.render_pass, &self.swapchain, self.depth.view)?;
         self.render_finished = create_semaphores(device, self.swapchain.images.len())?;
         self.needs_recreate = false;
         log::debug!("Swapchain пересоздан: {:?}", self.swapchain.extent);
@@ -241,10 +419,15 @@ impl Drop for Renderer {
         let device = &self.ctx.device;
         unsafe {
             let _ = device.device_wait_idle();
-            for f in &self.frames {
+            for f in &mut self.frames {
                 device.destroy_fence(f.in_flight, None);
                 device.destroy_semaphore(f.image_available, None);
+                f.instances.destroy(device);
+                f.ui.destroy(device);
             }
+            self.vertices.destroy(device);
+            self.pipelines.destroy(device);
+            self.depth.destroy(device);
             device.destroy_command_pool(self.command_pool, None);
             destroy_semaphores(device, &mut self.render_finished);
             destroy_framebuffers(device, &mut self.framebuffers);
@@ -255,33 +438,59 @@ impl Drop for Renderer {
     }
 }
 
-/// Проход рендера с одним цветовым вложением: в начале очистить цветом,
-/// в конце перевести картинку в состояние «готова к показу».
-fn create_render_pass(device: &ash::Device, format: vk::Format) -> Result<vk::RenderPass> {
-    let attachments = [vk::AttachmentDescription::default()
-        .format(format)
-        .samples(vk::SampleCountFlags::TYPE_1)
-        .load_op(vk::AttachmentLoadOp::CLEAR)
-        .store_op(vk::AttachmentStoreOp::STORE)
-        .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
-        .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
-        .initial_layout(vk::ImageLayout::UNDEFINED)
-        .final_layout(vk::ImageLayout::PRESENT_SRC_KHR)];
+/// Проход рендера: цвет (картинка окна) и глубина. В начале оба очищаются,
+/// в конце цвет переводится в состояние «готов к показу».
+fn create_render_pass(
+    device: &ash::Device,
+    format: vk::Format,
+    depth_format: vk::Format,
+) -> Result<vk::RenderPass> {
+    let attachments = [
+        vk::AttachmentDescription::default()
+            .format(format)
+            .samples(vk::SampleCountFlags::TYPE_1)
+            .load_op(vk::AttachmentLoadOp::CLEAR)
+            .store_op(vk::AttachmentStoreOp::STORE)
+            .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+            .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+            .initial_layout(vk::ImageLayout::UNDEFINED)
+            .final_layout(vk::ImageLayout::PRESENT_SRC_KHR),
+        vk::AttachmentDescription::default()
+            .format(depth_format)
+            .samples(vk::SampleCountFlags::TYPE_1)
+            .load_op(vk::AttachmentLoadOp::CLEAR)
+            .store_op(vk::AttachmentStoreOp::DONT_CARE)
+            .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+            .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+            .initial_layout(vk::ImageLayout::UNDEFINED)
+            .final_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL),
+    ];
     let color_ref = [vk::AttachmentReference {
         attachment: 0,
         layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
     }];
+    let depth_ref = vk::AttachmentReference {
+        attachment: 1,
+        layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    };
     let subpasses = [vk::SubpassDescription::default()
         .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-        .color_attachments(&color_ref)];
-    // Не начинать запись в картинку, пока система не отдала её (семафор image_available).
+        .color_attachments(&color_ref)
+        .depth_stencil_attachment(&depth_ref)];
+    // Не начинать запись в картинку, пока система не отдала её (семафор image_available),
+    // и не очищать глубину, пока предыдущий кадр её ещё читает.
+    let stages = vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
+        | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
+        | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS;
     let dependencies = [vk::SubpassDependency {
         src_subpass: vk::SUBPASS_EXTERNAL,
         dst_subpass: 0,
-        src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-        dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-        src_access_mask: vk::AccessFlags::empty(),
-        dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+        src_stage_mask: stages,
+        dst_stage_mask: stages,
+        src_access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+        dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE
+            | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE
+            | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ,
         dependency_flags: vk::DependencyFlags::empty(),
     }];
     let info = vk::RenderPassCreateInfo::default()
@@ -295,12 +504,13 @@ fn create_framebuffers(
     device: &ash::Device,
     render_pass: vk::RenderPass,
     swapchain: &Swapchain,
+    depth_view: vk::ImageView,
 ) -> Result<Vec<vk::Framebuffer>> {
     swapchain
         .views
         .iter()
         .map(|&view| {
-            let attachments = [view];
+            let attachments = [view, depth_view];
             let info = vk::FramebufferCreateInfo::default()
                 .render_pass(render_pass)
                 .attachments(&attachments)
@@ -310,6 +520,12 @@ fn create_framebuffers(
             Ok(unsafe { device.create_framebuffer(&info, None) }?)
         })
         .collect()
+}
+
+/// Байты простой структуры для push-констант.
+fn as_bytes<T: Copy>(value: &T) -> &[u8] {
+    // SAFETY: T — repr(C) структура из f32 без указателей и без «дыр».
+    unsafe { std::slice::from_raw_parts(value as *const T as *const u8, std::mem::size_of::<T>()) }
 }
 
 fn create_semaphores(device: &ash::Device, count: usize) -> Result<Vec<vk::Semaphore>> {
