@@ -1,0 +1,19 @@
+[package]
+name = "rm_campaign_map"
+description = "Рендер карты кампании: heightmap, запечённые lightmap и normal map, stencil-границы, splatting владельцев"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+# Детерминированный ГСЧ для генерации карты.
+rm_core = { path = "../rm_core" }
+# Vulkan. По docs/adr/crate-map.md ash живёт в rm_render, но этого крейта ещё нет,
+# а rm_app уже рисует через ash напрямую. Весь Vulkan-код карты собран в модуле
+# gpu/, чтобы потом переехать в rm_render одним куском.
+ash = "0.38"
+# Матрицы камеры карты.
+glam = "0.30"

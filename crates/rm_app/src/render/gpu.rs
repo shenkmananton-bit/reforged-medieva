@@ -104,7 +104,7 @@ impl DepthImage {
             .view_type(vk::ImageViewType::TYPE_2D)
             .format(format)
             .subresource_range(vk::ImageSubresourceRange {
-                aspect_mask: vk::ImageAspectFlags::DEPTH,
+                aspect_mask: depth_aspect(format),
                 base_mip_level: 0,
                 level_count: 1,
                 base_array_layer: 0,
@@ -128,8 +128,13 @@ impl DepthImage {
 }
 
 /// Первый формат глубины, который видеокарта умеет использовать как вложение.
+/// Форматы со stencil идут первыми: через stencil карта кампании рисует
+/// границы фракций (хак H-03, `docs/campaign-map/render.md`). Хотя бы один
+/// из двух первых Vulkan обязан поддерживать.
 pub fn pick_depth_format(ctx: &VulkanContext) -> Result<vk::Format> {
     [
+        vk::Format::D24_UNORM_S8_UINT,
+        vk::Format::D32_SFLOAT_S8_UINT,
         vk::Format::D32_SFLOAT,
         vk::Format::X8_D24_UNORM_PACK32,
         vk::Format::D16_UNORM,
@@ -145,6 +150,24 @@ pub fn pick_depth_format(ctx: &VulkanContext) -> Result<vk::Format> {
             .contains(vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT)
     })
     .ok_or_else(|| anyhow!("видеокарта не поддерживает буфер глубины"))
+}
+
+/// Есть ли в формате глубины stencil.
+pub fn has_stencil(format: vk::Format) -> bool {
+    matches!(
+        format,
+        vk::Format::D24_UNORM_S8_UINT
+            | vk::Format::D32_SFLOAT_S8_UINT
+            | vk::Format::D16_UNORM_S8_UINT
+    )
+}
+
+fn depth_aspect(format: vk::Format) -> vk::ImageAspectFlags {
+    if has_stencil(format) {
+        vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL
+    } else {
+        vk::ImageAspectFlags::DEPTH
+    }
 }
 
 fn allocate(

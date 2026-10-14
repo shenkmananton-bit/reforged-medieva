@@ -6,6 +6,8 @@
 
 mod app;
 mod camera;
+mod campaign;
+mod campaign_app;
 mod font;
 mod game;
 mod hud;
@@ -44,6 +46,17 @@ fn main() -> ExitCode {
 fn run(options: options::Options) -> anyhow::Result<()> {
     let data_dir = game::find_data_dir(options.data_dir.as_deref())?;
     log::info!("Данные: {}", data_dir.display());
+    if options.campaign {
+        let (view, baked, mesh) =
+            campaign::CampaignView::new(&data_dir, options.seed, options.demo)?;
+        let event_loop = EventLoop::new()?;
+        let mut app = campaign_app::CampaignApp::new(options, view, baked, mesh);
+        event_loop.run_app(&mut app)?;
+        return match app.error.take() {
+            Some(e) => Err(e),
+            None => Ok(()),
+        };
+    }
     let game = game::Game::new(&data_dir, options.seed, options.demo)?;
     let event_loop = EventLoop::new()?;
     let mut app = app::App::new(options, game);
