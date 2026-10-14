@@ -12,17 +12,25 @@
 //!
 //! Подробное описание — в `docs/data/`, руководство для моддеров — в `docs/modding/`.
 
+pub mod campaign;
 pub mod error;
 pub mod faction;
 pub mod lexer;
 mod record;
+pub mod region;
+pub mod resource;
+pub mod strat;
 pub mod unit;
 
 use std::path::Path;
 
+pub use campaign::{CampaignData, CampaignRules, RegionLink, SettlementLevel};
 pub use error::{DataError, DataErrors};
 pub use faction::{FACTIONS_FILE, Faction, Rgb, load_factions, parse_factions};
 pub use record::ExtraField;
+pub use region::Region;
+pub use resource::Resource;
+pub use strat::{Date, Season, Strat, StratCharacter, StratFaction, StratSettlement, StratUnit};
 pub use unit::{UNITS_FILE, Unit, UnitCategory, UnitClass, load_units, parse_units};
 
 /// Все данные, загруженные из одной папки `data/`.

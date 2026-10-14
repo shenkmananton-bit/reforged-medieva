@@ -38,6 +38,21 @@ fn main() -> ExitCode {
                     );
                 }
             }
+            // Файлы кампании проверяем, только если в папке есть кампания.
+            if dir.join(rm_data::strat::STRAT_FILE).exists() {
+                match rm_data::CampaignData::load_dir(&dir) {
+                    Ok(c) => println!(
+                        "Кампания в порядке: регионов {}, фракций на карте {}.",
+                        c.regions.len(),
+                        c.strat.factions.len()
+                    ),
+                    Err(errors) => {
+                        eprintln!("{errors}");
+                        eprintln!("Найдено ошибок в файлах кампании: {}.", errors.len());
+                        return ExitCode::FAILURE;
+                    }
+                }
+            }
             println!(
                 "Всё в порядке: юнитов {}, фракций {}.",
                 data.units.len(),

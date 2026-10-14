@@ -1296,6 +1296,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rm_campaign"
+version = "0.1.0"
+dependencies = [
+ "rm_core",
+ "rm_data",
+]
+
+[[package]]
 name = "rm_core"
 version = "0.1.0"
 
